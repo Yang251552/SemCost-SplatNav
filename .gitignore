@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+*.pyc
+logs/
+runs/
+checkpoints/
+*.pt
+*.pth
+*.zip
+wandb/
+.DS_Store
+
