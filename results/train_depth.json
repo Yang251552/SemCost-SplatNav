@@ -1,0 +1,52 @@
+{
+  "obs_mode": "depth",
+  "timesteps": 500000,
+  "seed": 0,
+  "n_envs": 8,
+  "device": "cpu",
+  "train_seconds": 667.92,
+  "model_path": "/Users/yangchenghan/Documents/SP\u7533\u8bf73/SemCost-SplatNav/checkpoints/ppo_depth.zip",
+  "config": {
+    "max_steps": 90,
+    "reward_config": {
+      "shaping_coef": 0.02
+    },
+    "map_config": {
+      "size": 11,
+      "band_rows": [
+        4,
+        5,
+        6
+      ],
+      "gap_width": 3,
+      "hazard_value": 1.0,
+      "goal_col": null,
+      "randomize_start_col": true
+    },
+    "train_timesteps_default": 500000,
+    "n_envs": 8,
+    "train_seed": 0,
+    "ppo_kwargs": {
+      "n_steps": 512,
+      "batch_size": 256,
+      "n_epochs": 10,
+      "gamma": 0.99,
+      "gae_lambda": 0.95,
+      "clip_range": 0.2,
+      "ent_coef": 0.02,
+      "learning_rate": 0.0003,
+      "vf_coef": 0.5,
+      "max_grad_norm": 0.5
+    },
+    "n_eval_episodes": 200,
+    "eval_seed_base": 100000
+  },
+  "dependency_versions": {
+    "python": "3.12.4",
+    "platform": "macOS-10.16-x86_64-i386-64bit",
+    "numpy": "1.26.4",
+    "gymnasium": "1.0.0",
+    "stable_baselines3": "2.4.1",
+    "torch": "2.2.2"
+  }
+}

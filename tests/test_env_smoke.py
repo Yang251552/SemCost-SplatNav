@@ -5,9 +5,17 @@ Run directly (``python tests/test_env_smoke.py``) or via pytest.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import numpy as np
 
-from semcost_nav.envs.semcost_nav_env import SemCostNavEnv
+# Allow running directly (``python tests/test_env_smoke.py``) without install.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from semcost_nav.envs.semcost_nav_env import SemCostNavEnv  # noqa: E402
 
 
 def test_obs_shapes() -> None:

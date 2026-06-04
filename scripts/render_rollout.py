@@ -18,6 +18,9 @@ import argparse
 from pathlib import Path
 import sys
 
+import shutil
+import subprocess
+
 import numpy as np
 import imageio.v2 as imageio
 import matplotlib
@@ -93,6 +96,39 @@ def _label_frame(frame: np.ndarray, text: str) -> np.ndarray:
     out = np.asarray(fig.canvas.buffer_rgba())[:, :, :3].copy()
     plt.close(fig)
     return out
+
+
+def write_mp4(frames, path, fps: int) -> bool:
+    """Encode frames to MP4 using the system ffmpeg (rawvideo pipe).
+
+    Returns True on success, False if ffmpeg is unavailable or fails. This keeps
+    MP4 generation fully offline (no imageio-ffmpeg download required).
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        return False
+    h, w, _ = frames[0].shape
+    # ffmpeg requires even dimensions for yuv420p.
+    if h % 2 or w % 2:
+        frames = [
+            np.pad(f, ((0, h % 2), (0, w % 2), (0, 0)), mode="edge") for f in frames
+        ]
+        h, w, _ = frames[0].shape
+    cmd = [
+        ffmpeg, "-y", "-f", "rawvideo", "-pix_fmt", "rgb24",
+        "-s", f"{w}x{h}", "-r", str(fps), "-i", "-",
+        "-an", "-vcodec", "libx264", "-pix_fmt", "yuv420p", str(path),
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            input=b"".join(np.ascontiguousarray(f, dtype=np.uint8).tobytes() for f in frames),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return proc.returncode == 0 and path.exists() and path.stat().st_size > 1000
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def make_side_by_side(frames_d, frames_s, sum_d, sum_s):
@@ -184,12 +220,12 @@ def main() -> None:
     imageio.mimsave(gif_path, combined, duration=1.0 / args.fps, loop=0)
     print(f"[render] -> {gif_path}")
 
-    try:
-        mp4_path = figures_dir / "rollout_comparison.mp4"
-        imageio.mimsave(mp4_path, combined, fps=args.fps)
+    mp4_path = figures_dir / "rollout_comparison.mp4"
+    if write_mp4(combined, mp4_path, args.fps):
         print(f"[render] -> {mp4_path}")
-    except Exception as e:  # noqa: BLE001 - ffmpeg optional
-        print(f"[render] mp4 skipped ({e})")
+    else:
+        mp4_path.unlink(missing_ok=True)
+        print("[render] mp4 skipped (no ffmpeg); GIF satisfies the artifact spec")
 
     scene_path = figures_dir / "scene_depth_cost_trajectory.png"
     save_scene_figure_with_traj(sum_d, sum_s, scene_path)
