@@ -1,0 +1,130 @@
+experiment: gaussgym_stage2_flagship
+base_task: a1_vision
+source_config: /tmp/gg/gauss_gym/envs/a1/config_vision.yaml
+notes:
+  base: a1_vision is resolved by GaussGym task_registry at runtime.
+  cli: GaussGym Flags use --key=value and dotted nested keys.
+
+base_config:
+  task: a1_vision
+  env:
+    num_envs: 512
+  terrain:
+    scenes:
+      iphone_data:
+        split_frac: 0.0
+      grand_tour:
+        split_frac: 0.0
+      arkit:
+        split_frac: 1.0
+  observations:
+    image_encoder:
+      add_noise: true
+      add_latency: true
+      latency_resampling_interval_s: 3.0
+      observations:
+        - CAMERA_IMAGE
+        - PROJECTED_GRAVITY
+    critic:
+      observations:
+        - BASE_LIN_VEL
+        - BASE_ANG_VEL
+        - PROJECTED_GRAVITY
+        - VELOCITY_COMMANDS
+        - DOF_POS
+        - DOF_VEL
+        - ACTIONS
+        - RAY_CAST
+        - BASE_MASS_SCALED
+        - DOF_FRICTION
+        - DOF_ARMATURE
+        - PUSHING_FORCES
+        - PUSHING_TORQUES
+        - HIP_HEIGHTS
+        - BASE_HEIGHT
+        - FEET_AIR_TIME
+        - FEET_CONTACT_TIME
+        - FEET_CONTACT
+        - STIFFNESS
+        - DAMPING
+        - MOTOR_STRENGTH
+        - MOTOR_ERROR
+        - IMAGE_ENCODER_LATENT
+    policy:
+      add_noise: true
+      add_latency: true
+      latency_resampling_interval_s: 3.0
+      observations:
+        - BASE_ANG_VEL
+        - PROJECTED_GRAVITY
+        - VELOCITY_COMMANDS
+        - DOF_POS
+        - DOF_VEL
+        - ACTIONS
+        - IMAGE_ENCODER_LATENT
+      sync_latency:
+        - BASE_ANG_VEL
+        - PROJECTED_GRAVITY
+        - VELOCITY_COMMANDS
+        - DOF_POS
+        - DOF_VEL
+  rewards:
+    semantic_cost_penalty:
+      scale: 0.0
+
+override:
+  env:
+    num_envs: 512
+  terrain:
+    scenes:
+      iphone_data:
+        split_frac: 0.0
+      grand_tour:
+        split_frac: 0.0
+      arkit:
+        split_frac: 1.0
+
+arms:
+  depth:
+    observations:
+      image_encoder:
+        observations:
+          - RAY_CAST
+          - PROJECTED_GRAVITY
+      critic:
+        observations:
+          - BASE_LIN_VEL
+          - BASE_ANG_VEL
+          - PROJECTED_GRAVITY
+          - VELOCITY_COMMANDS
+          - DOF_POS
+          - DOF_VEL
+          - ACTIONS
+          - BASE_MASS_SCALED
+          - DOF_FRICTION
+          - DOF_ARMATURE
+          - PUSHING_FORCES
+          - PUSHING_TORQUES
+          - HIP_HEIGHTS
+          - BASE_HEIGHT
+          - FEET_AIR_TIME
+          - FEET_CONTACT_TIME
+          - FEET_CONTACT
+          - STIFFNESS
+          - DAMPING
+          - MOTOR_STRENGTH
+          - MOTOR_ERROR
+          - IMAGE_ENCODER_LATENT
+  rgb:
+    observations:
+      image_encoder:
+        observations:
+          - CAMERA_IMAGE
+          - PROJECTED_GRAVITY
+  rgb_sem:
+    observations:
+      image_encoder:
+        observations:
+          - CAMERA_IMAGE
+          - SEMANTIC_COST
+          - PROJECTED_GRAVITY

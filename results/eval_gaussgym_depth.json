@@ -1,0 +1,13 @@
+{
+  "success_rate": null,
+  "collision_rate": null,
+  "bad_region_time": null,
+  "path_length": null,
+  "average_return": null,
+  "config_hash": "df5c00ac6afea91e8f61e711865b19db1a65af99c1400a06e07e99b5a0f00276",
+  "arm": "depth",
+  "seed_list": [
+    0,
+    1
+  ]
+}

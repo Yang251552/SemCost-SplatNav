@@ -10,17 +10,37 @@ prototype asks a focused question:
 > When geometry/depth cannot distinguish hazardous regions, does an extra
 > **semantic-cost** observation channel help a PPO policy avoid them?
 
-Short answer, on a deliberately geometry-ambiguous task: **yes** — adding a
-semantic-cost channel cuts hazardous-region exposure by ~57% at equal (100%)
-success, with collisions at zero for both, while also producing shorter paths.
+The project is structured as **two stages** of evidence on this single
+hypothesis, each stage progressively more realistic:
+
+- **Stage 1 — Controlled grid baseline (done).** A geometry-ambiguous 11×11
+  arena with a *ground-truth* semantic-cost field. On 200 paired evaluation
+  seeds: adding the semantic-cost channel cuts hazardous-region exposure by
+  **~57%** at equal (100%) success, zero collisions for both, and shorter
+  paths. Cheap, fully controlled, isolates the information effect — but the
+  scene and semantics are toy.
+- **Stage 2 — Flagship: gsplat scene + 3-arm ablation (in progress).** A real
+  pretrained Gaussian-Splatting scene rendered into RGB-D on AWS, with an
+  **estimated** semantic-cost field from post-hoc DINOv2 ViT-S features. Same
+  PPO net / reward / seed / steps across **three obs modes** (`depth`, `rgb`,
+  `rgb+semantic`); only `obs_keys` differ (enforced by config-hash + runtime
+  fairness assertion + channel-ablation unit test). Headline comparison =
+  **`rgb+semantic` vs `rgb`** (RGB already encodes some semantic cues, so this
+  is the honest test; `depth` is reported for completeness). Plan, budget
+  (≤\$50 spot), AWS confirmation gates, and overnight automation in
+  [docs/AWS_FLAGSHIP_PLAN.md](docs/AWS_FLAGSHIP_PLAN.md).
 
 This is a *prototype toward* online semantic Gaussian Splatting + RL
-(e.g. GaussGym-style pipelines), **not** a full integration. See
-[Limitations](#limitations) and [Next steps](#next-steps-toward-gaussgym).
+(e.g. GaussGym-style pipelines), **not** a full integration of any of them
+even after Stage 2. Renderer-internal VFM feature splatting (the Hero
+version) is explicitly [future work](#next-steps-hero-version). See also
+[Limitations](#limitations).
 
 ---
 
-## Motivation
+## Stage 1 — Controlled grid baseline (done)
+
+### Motivation
 
 Photorealistic, geometry-only simulators give an agent excellent shape cues but
 no notion of *what* a surface means. A semantic Gaussian-Splatting map, by
@@ -29,7 +49,7 @@ non-traversable-but-passable regions). The thesis direction is to feed such a
 rendered semantic cost into an RL policy. Before building the full pipeline, we
 isolate the core hypothesis in a small, controllable environment.
 
-## Method
+### Method
 
 - **Algorithm:** PPO (Stable-Baselines3) with a small shared CNN feature
   extractor (`SmallNavCNN`).
@@ -44,7 +64,7 @@ isolate the core hypothesis in a small, controllable environment.
   additional weights) — an unavoidable side effect of the extra channel, not a
   capacity advantage; all other layers are identical.
 
-## Environment
+### Environment
 
 A small `11x11` walled arena (Gymnasium API):
 
@@ -72,7 +92,7 @@ the hazard is **invisible**; (c) the semantic-cost channel — it reveals the
 hazard and the gap; (d) example trajectories: the depth-only policy crosses the
 hazard, the semantic policy detours through the gap.*
 
-## Experiments
+### Experiments
 
 - PPO, 500k timesteps per mode, 8 parallel envs, training seed `0`.
 - Evaluation on **200 fixed seeds**, identical for both modes (so both policies
@@ -80,7 +100,7 @@ hazard, the semantic policy detours through the gap.*
 - Primary metrics: `success_rate`, `collision_rate`, `bad_region_time`,
   `path_length`, `average_return`.
 
-## Results
+### Results
 
 | Metric | depth-only | depth + semantic_cost | Δ |
 |---|---|---|---|
@@ -108,36 +128,119 @@ roughly **halving hazardous-region exposure** — and, because the gap-aware rou
 is also more direct here, it does so with *shorter* paths and higher return. The
 headline claim rests on `bad_region_time` (a safety metric), not on reward alone.
 
+---
+
+## Stage 2 — Flagship: gsplat scene + 3-arm ablation (in progress)
+
+> **Status:** code path and full plan are in place; training runs are gated
+> on the §9 confirmation sign-off in
+> [docs/AWS_FLAGSHIP_PLAN.md](docs/AWS_FLAGSHIP_PLAN.md). Result tables and
+> hero video are filled in after the overnight run completes; placeholders
+> below are marked `TBD`.
+
+### Method
+
+- **Scene.** A pretrained Gaussian-Splatting scene from HuggingFace, chosen
+  so the hazard class (e.g. rug / spill / clutter patch) is **geometrically
+  indistinguishable** from the surrounding floor in the depth channel but
+  visually distinct in DINOv2 features (verified in D0 before any paid GPU;
+  parity IoU ≥ 0.5 against a human-labelled hazard mask).
+- **Renderer.** `gsplat` (CUDA) on an AWS A10G, producing per-frame RGB + Depth
+  along robot poses.
+- **Estimated semantic-cost.** For each rendered RGB frame, run **DINOv2 ViT-S**
+  → PCA → cosine vs a hazard prototype embedding → per-pixel cost map. The
+  cost map encodes hazard intensity only; it never encodes target position
+  (leakage guard + channel-ablation unit test, carried over from Stage 1).
+- **Three obs modes** (same PPO net / reward / seed / steps; only `obs_keys`
+  differ, enforced by a config-hash check at run start):
+  - `A. depth`         → `[depth]`
+  - `B. rgb`           → `[rgb]`
+  - `C. rgb+semantic`  → `[rgb, cost_map]`
+- **Env.** A GaussGym-style vectorized env on IsaacGym / Isaac Lab (exact
+  backend locked in D0); 512 → 1024 parallel envs depending on VRAM.
+
+### Headline comparison
+
+`rgb+semantic` vs `rgb`. RGB already encodes some semantic cues, so this is
+the honest test of whether an explicit semantic-cost channel adds *further*
+safety value once the policy can see colour. All three arms are reported, but
+the headline claim rests on this single pair (and on `bad_region_time`, not
+on average reward).
+
+### Results (filled in post-run)
+
+| Metric                | depth-only | rgb     | rgb + semantic | Δ (sem − rgb) |
+|-----------------------|------------|---------|----------------|---------------|
+| success_rate          | TBD        | TBD     | TBD            | TBD           |
+| collision_rate        | TBD        | TBD     | TBD            | TBD           |
+| **bad_region_time**   | TBD        | TBD     | TBD            | TBD           |
+| path_length           | TBD        | TBD     | TBD            | TBD           |
+| average_return        | TBD        | TBD     | TBD            | TBD           |
+
+*(Paired evaluation across a fixed eval-seed set; target ≥3 training seeds per
+arm, honestly disclosed if the AWS budget forces fewer. Hero clip
+`figures/ablation_rollout.mp4` shows the same scene rolled out under each
+arm side-by-side; learning curves in `figures/time_in_bad_region.png`; the
+RGB / depth / cost / avoid-mask 4-up panel in
+`figures/rgbd_cost_avoid_quad.png`.)*
+
+See [Reproduce → Stage 2](#stage-2-aws-g52xlarge-spot-a10g) for the exact
+commands and [docs/AWS_FLAGSHIP_PLAN.md](docs/AWS_FLAGSHIP_PLAN.md) for the
+full plan, budget cap, AWS confirmation gates, and overnight automation
+pipeline.
+
+---
+
 ## Limitations
 
+**Stage 1 (grid baseline):**
 - The task is intentionally simple and geometry-ambiguous; it is designed to
   *isolate* the semantic-information effect, not to be a general benchmark.
 - The "depth" channel is a top-down egocentric occupancy/geometry view, a
   simplification of true sensor depth, chosen to keep the task Markovian and
   trainable on a single CPU.
-- The semantic-cost channel is a ground-truth hazard field provided by the
-  environment — it is a **stand-in** for the semantic map a real system would
-  have to *estimate*. Estimation error is out of scope here.
-- Single training seed per mode (with a fixed, shared evaluation seed set).
-  Results are reported on CPU with recorded dependency versions for
-  reproducibility.
+- The semantic-cost channel is a ground-truth hazard field — a **stand-in**
+  for the semantic map a real system would have to *estimate*. Stage 2 lifts
+  this restriction.
+- Single training seed per mode, with a fixed shared evaluation seed set
+  (paired comparison; not a claim about training-seed variance).
 
-## Next steps (toward GaussGym)
+**Stage 2 (flagship):**
+- Single pretrained gsplat scene with a single hazard object class; not a
+  multi-scene generalization study.
+- Semantic-cost comes from post-hoc DINOv2 + PCA + cosine to a hazard
+  prototype — it is now an *estimated* field, but estimated **offline** from
+  rendered RGB, not jointly with the splat. Renderer-internal VFM feature
+  splatting (Hero version) is future work.
+- 3-arm runs are budget-bounded (≤\$50 AWS spot on a single A10G; the three
+  arms share that one GPU, so training is serialized — not "3× faster via
+  parallel arms"). Target ≥3 training seeds per arm, honestly disclosed if
+  the budget forces fewer.
+- GaussGym integration is a lightweight env wrapper around the gsplat
+  renderer, not a full reproduction of GaussGym's pipelines.
 
-This prototype is the RL/observation-interface half of a larger plan:
+## Next steps (Hero version)
 
-1. Replace the hand-crafted hazard field with a **semantic-cost map rendered
-   from a (semantic) Gaussian-Splatting scene**, so the semantic channel comes
-   from a learned/estimated map rather than ground truth.
-2. Move from the abstract grid to a **GaussGym-style photorealistic** setting
-   and feed rendered RGB-D + semantic-cost to the policy.
-3. Study robustness to **semantic-map estimation error** and partial
-   observability.
+Stage 2 already absorbs items 1 and 2 of the original "toward GaussGym"
+roadmap into the project. What remains is the **Hero version**:
 
-The repository is structured so the environment, policy and experiment harness
-can be reused as these pieces are swapped in.
+1. **Renderer-internal VFM feature splatting.** Instead of running DINOv2
+   post-hoc on rendered RGB, attach VFM features to the Gaussians themselves
+   so semantic features can be rendered jointly with RGB-D in one rasterizer
+   pass — the architecture an online semantic-splatting + RL system would
+   actually use.
+2. **Multi-scene generalization and on-policy splat updates.** Train across
+   several gsplat scenes; study whether the policy's behaviour is sensitive
+   to splat quality, hazard-prototype choice, and on-policy map refinement.
+3. **Robustness to semantic-map estimation error**, partial observability,
+   and distribution shift between the prototype set and deployment scenes.
+
+The repository is structured so the env, policy, and experiment harness can
+be reused as these pieces are swapped in.
 
 ## Reproduce
+
+### Stage 1 (CPU, single machine)
 
 ```bash
 pip install -r requirements.txt
@@ -159,16 +262,53 @@ python scripts/render_rollout.py
 python tests/test_env_smoke.py
 ```
 
-Outputs: `results/eval_depth.json`, `results/eval_depth_semantic.json`,
+Stage 1 outputs: `results/eval_depth.json`, `results/eval_depth_semantic.json`,
 `figures/metrics_comparison.png`, `figures/rollout_comparison.gif` (+ `.mp4`),
 `figures/scene_depth_cost_trajectory.png`.
+
+### Stage 2 (AWS g5.2xlarge spot, A10G)
+
+See [AWS_RUNBOOK.md](AWS_RUNBOOK.md) for instance setup and the
+[§9 confirmation gates](docs/AWS_FLAGSHIP_PLAN.md) before any paid step.
+
+```bash
+# Pinned env (CUDA / torch / gsplat / IsaacGym-or-IsaacLab, locked in D0):
+conda env create -f env.yaml && conda activate semcost-flagship
+
+# 3-arm training (same config, only observation tokens differ; config-hash enforced):
+python scripts/train_gaussgym.py --obs depth   --config configs/flagship.yaml
+python scripts/train_gaussgym.py --obs rgb     --config configs/flagship.yaml
+python scripts/train_gaussgym.py --obs rgb_sem --config configs/flagship.yaml
+
+# Paired evaluation (2 seeds: spot quota denied -> on-demand cost cap; disclosed in REPORT):
+python scripts/evaluate_gaussgym.py --all-modes --seeds 2
+
+# Or the one-shot overnight pipeline (train → eval → S3 sync → shutdown):
+bash scripts/run_flagship_overnight.sh
+```
+
+Stage 2 outputs: `results/eval_rgb.json`, `results/eval_rgb_sem.json`
+(+ `results/eval_gaussgym_depth.json` for completeness — Stage-2 depth arm,
+named so it never overwrites the Stage-1 `results/eval_depth.json`),
+`results/parity_report.json`, `figures/ablation_rollout.mp4`,
+`figures/time_in_bad_region.png`, `figures/rgbd_cost_avoid_quad.png`,
+`renders/cost_map_overlay.mp4`.
 
 ## Repository layout
 
 ```
-semcost_nav/        # package: env, maps, policy extractor, experiment config, metrics
-scripts/            # train.py, evaluate.py, run_experiment.py, plot_results.py, render_rollout.py
-tests/              # environment smoke tests (shapes, determinism, leakage guard, orientation)
-results/            # evaluation + training-metadata JSON
-figures/            # generated figures, GIF, MP4
+semcost_nav/             # Stage 1 package: env, maps, policy extractor, experiment config, metrics
+scripts/                 # Stage 1: train.py, evaluate.py, run_experiment.py, plot_results.py, render_rollout.py
+                         # Stage 2: train_gaussgym.py, evaluate_gaussgym.py, run_flagship_overnight.sh
+configs/                 # Stage 2: flagship.yaml (shared across all 3 arms)
+tests/                   # env smoke tests + Stage 2 config-hash & channel-ablation tests
+results/                 # eval + training-metadata JSON (Stage 1 + Stage 2)
+figures/                 # generated figures, GIFs, MP4s (Stage 1 + Stage 2 hero artifacts)
+renders/                 # Stage 2: gsplat RGB-D + DINO cost-map overlay clips
+docs/                    # AWS_FLAGSHIP_PLAN.md (Stage 2 plan, budget, gates)
+local_safety_snapshots/  # patch snapshots before non-trivial phases (gitignored)
 ```
+
+`.gitignore` covers training artifacts (`runs/`, `checkpoints/`, `*.ckpt`,
+`*.pt`, large `renders/*.mp4`) — Stage 2 checkpoints live in S3, not git;
+only small metrics / configs / parity reports are committed.
