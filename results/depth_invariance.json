@@ -1,0 +1,112 @@
+{
+  "num_labeled": 5,
+  "is_stub": false,
+  "method": "floor-only RANSAC plane (carpet EXCLUDED from fit); verdict from signed carpet step vs LOCAL floor-fit noise floor (std + robust MAD sensitivity) and cross-frame sign-consistency (the noise-scale-independent primary criterion)",
+  "ransac_thresh_m": 0.03,
+  "step_to_noise_threshold": 1.0,
+  "per_frame": {
+    "0060": {
+      "carpet_step_signed_median_m": 0.035889466350888743,
+      "carpet_resid_abs_median_m": 0.036869090762126244,
+      "floor_noise_std_m": 0.13416337922861324,
+      "floor_noise_mad_m": 0.05009153027601828,
+      "floor_resid_abs_median_m": 0.027757411089503248,
+      "step_to_noise": 0.2675056826776359,
+      "step_to_noise_mad": 0.7164777389137004,
+      "carpet_depth_median_m": 1.5788037776947021,
+      "n_carpet_pts": 568,
+      "n_floor_fit_pts": 590
+    },
+    "0061": {
+      "carpet_step_signed_median_m": -0.015099299705254143,
+      "carpet_resid_abs_median_m": 0.015632331503417696,
+      "floor_noise_std_m": 0.0957391565616062,
+      "floor_noise_mad_m": 0.05382424538621203,
+      "floor_resid_abs_median_m": 0.03118922381345368,
+      "step_to_noise": 0.15771289666144125,
+      "step_to_noise_mad": 0.2805297054684222,
+      "carpet_depth_median_m": 2.174859046936035,
+      "n_carpet_pts": 384,
+      "n_floor_fit_pts": 595
+    },
+    "0064": {
+      "carpet_step_signed_median_m": -0.012107739722045707,
+      "carpet_resid_abs_median_m": 0.014581931480386334,
+      "floor_noise_std_m": 0.10832748161330945,
+      "floor_noise_mad_m": 0.06184766353801696,
+      "floor_resid_abs_median_m": 0.03459123126549535,
+      "step_to_noise": 0.11176978862359256,
+      "step_to_noise_mad": 0.1957671321666539,
+      "carpet_depth_median_m": 2.079085350036621,
+      "n_carpet_pts": 445,
+      "n_floor_fit_pts": 574
+    },
+    "0065": {
+      "carpet_step_signed_median_m": -0.05254113324843085,
+      "carpet_resid_abs_median_m": 0.05254113324843085,
+      "floor_noise_std_m": 0.06628097767897848,
+      "floor_noise_mad_m": 0.04210729177926516,
+      "floor_resid_abs_median_m": 0.02777890239712144,
+      "step_to_noise": 0.7927030512872878,
+      "step_to_noise_mad": 1.247791796344015,
+      "carpet_depth_median_m": 1.6018710136413574,
+      "n_carpet_pts": 908,
+      "n_floor_fit_pts": 612
+    },
+    "0066": {
+      "carpet_step_signed_median_m": -0.05156564354172777,
+      "carpet_resid_abs_median_m": 0.05156564354172777,
+      "floor_noise_std_m": 0.06308502786968878,
+      "floor_noise_mad_m": 0.042481623363885154,
+      "floor_resid_abs_median_m": 0.026910337022994946,
+      "step_to_noise": 0.8173990768181008,
+      "step_to_noise_mad": 1.2138341112822255,
+      "carpet_depth_median_m": 1.5030966997146606,
+      "n_carpet_pts": 571,
+      "n_floor_fit_pts": 681
+    }
+  },
+  "supplementary_ring_abs_depth": {
+    "note": "absolute-depth inside-vs-ring KS test; confounded by near-field perspective gradient and non-floor objects in the ring; reported for transparency, NOT used for verdict",
+    "ring_pixels": 5,
+    "per_frame": {
+      "0060": {
+        "mean_inside": 1.5903456211090088,
+        "mean_outside": 1.6451934576034546,
+        "mean_diff": 0.0548478364944458,
+        "ks_pvalue": 1.0306263504026234e-18
+      },
+      "0061": {
+        "mean_inside": 2.236811876296997,
+        "mean_outside": 2.458329916000366,
+        "mean_diff": 0.22151803970336914,
+        "ks_pvalue": 1.1855313123643594e-19
+      },
+      "0064": {
+        "mean_inside": 2.1255669593811035,
+        "mean_outside": 2.319704055786133,
+        "mean_diff": 0.1941370964050293,
+        "ks_pvalue": 3.5776721017791557e-12
+      },
+      "0065": {
+        "mean_inside": 1.6566640138626099,
+        "mean_outside": 1.977128267288208,
+        "mean_diff": 0.32046425342559814,
+        "ks_pvalue": 8.157013268560211e-39
+      },
+      "0066": {
+        "mean_inside": 1.5439956188201904,
+        "mean_outside": 1.5984828472137451,
+        "mean_diff": 0.05448722839355469,
+        "ks_pvalue": 5.008481300885154e-07
+      }
+    }
+  },
+  "overall": {
+    "median_step_to_noise": 0.2675056826776359,
+    "median_step_to_noise_mad": 0.7164777389137004,
+    "sign_consistent_across_frames": false,
+    "verdict": "depth_invariant",
+    "interpretation": "no systematic geometric step above the local floor-fit noise floor (median |step|/noise std=0.27, MAD=0.72; step signs inconsistent across frames -- the sign inconsistency is noise-scale-independent and is the primary evidence). Depth/geometry cannot reliably distinguish the carpet at this rendering resolution; this is weaker than zero-thickness coplanarity."
+  }
+}

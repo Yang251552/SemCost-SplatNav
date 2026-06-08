@@ -14,13 +14,19 @@ if str(ROOT) not in sys.path:
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build DINO semantic cost maps.")
-    p.add_argument("--rollout-rgb", required=True)
+    group = p.add_mutually_exclusive_group(required=False)
+    group.add_argument("--rollout-rgb", default=None)
+    group.add_argument("--rgb-dir", default=None)
     p.add_argument("--out", default=str(ROOT / "results" / "semantic_cost_maps.npz"))
     p.add_argument("--pca", default=str(ROOT / "results" / "dino_pca64.npy"))
     p.add_argument("--bad-proto", default=str(ROOT / "results" / "bad_proto.npy"))
+    p.add_argument("--batch-size", type=int, default=4)
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--parity-report", default=str(ROOT / "results" / "parity_report.json"))
-    return p.parse_args()
+    args = p.parse_args()
+    if not args.dry_run and not args.rollout_rgb and not args.rgb_dir:
+        p.error("one of --rollout-rgb or --rgb-dir is required")
+    return args
 
 
 def write_parity_template(path: Path, num_frames: int | None = None) -> None:
@@ -51,23 +57,67 @@ def main() -> int:
 
     try:
         import numpy as np
+        from PIL import Image
+        import torch
 
         from semcost_nav.semantic.dino_cost import DinoCostMapper
     except Exception as exc:
-        print(f"# TODO: run on GPU instance ({exc})")
+        print(f"[semantic-cost] missing dependency: {exc}", file=sys.stderr)
         return 2
 
-    rgb = np.load(args.rollout_rgb)
-    if isinstance(rgb, np.lib.npyio.NpzFile):
-        rgb = rgb["rgb"]
     try:
         mapper = DinoCostMapper(args.pca, args.bad_proto)
     except NotImplementedError as exc:
-        print(f"# TODO: run on GPU instance ({exc})")
+        print(f"[semantic-cost] missing dependency: {exc}", file=sys.stderr)
         return 2
-    cost = mapper(rgb)
-    np.savez(out_path, cost_maps=cost.detach().cpu().numpy())
-    write_parity_template(report_path, num_frames=int(rgb.shape[0]))
+
+    if args.rgb_dir:
+        paths = sorted(Path(args.rgb_dir).glob("*.png"))
+        if not paths:
+            raise SystemExit(f"No PNG frames found in {args.rgb_dir}")
+        frame_names = np.asarray([path.stem for path in paths])
+        batches = []
+        for start in range(0, len(paths), args.batch_size):
+            batch_paths = paths[start : start + args.batch_size]
+            rgb_np = np.stack(
+                [
+                    np.asarray(Image.open(path).convert("RGB"), dtype=np.float32) / 255.0
+                    for path in batch_paths
+                ],
+                axis=0,
+            )
+            rgb_tensor = torch.from_numpy(rgb_np).permute(0, 3, 1, 2)
+            cost = mapper(rgb_tensor).detach().cpu().numpy().astype(np.float32)
+            batches.append(cost)
+            done = min(start + len(batch_paths), len(paths))
+            print(f"[semantic-cost] processed {done}/{len(paths)} frames")
+        cost_maps = np.concatenate(batches, axis=0)
+    else:
+        loaded = np.load(args.rollout_rgb)
+        rgb = loaded["rgb"] if isinstance(loaded, np.lib.npyio.NpzFile) else loaded
+        rgb = np.asarray(rgb, dtype=np.float32)
+        if rgb.ndim != 4:
+            raise SystemExit("rollout RGB must be shaped (N,H,W,3) or (N,3,H,W)")
+        if rgb.shape[1] == 3:
+            rgb_tensor = torch.from_numpy(rgb)
+        elif rgb.shape[-1] == 3:
+            rgb_tensor = torch.from_numpy(rgb).permute(0, 3, 1, 2)
+        else:
+            raise SystemExit("rollout RGB must have 3 channels")
+        if float(rgb_tensor.max()) > 1.0:
+            rgb_tensor = rgb_tensor / 255.0
+        frame_names = np.asarray([f"{idx:04d}" for idx in range(rgb_tensor.shape[0])])
+        batches = []
+        for start in range(0, rgb_tensor.shape[0], args.batch_size):
+            batch = rgb_tensor[start : start + args.batch_size]
+            cost = mapper(batch).detach().cpu().numpy().astype(np.float32)
+            batches.append(cost)
+            done = min(start + batch.shape[0], rgb_tensor.shape[0])
+            print(f"[semantic-cost] processed {done}/{rgb_tensor.shape[0]} frames")
+        cost_maps = np.concatenate(batches, axis=0)
+
+    np.savez(out_path, cost_maps=cost_maps, frame_names=frame_names)
+    write_parity_template(report_path, num_frames=int(cost_maps.shape[0]))
     print(f"[semantic-cost] wrote {out_path}")
     print(f"[semantic-cost] wrote {report_path}")
     return 0

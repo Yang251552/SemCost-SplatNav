@@ -1,0 +1,17 @@
+{
+  "hazard_class": "carpet",
+  "mode": "leave-one-out",
+  "threshold": 0.1,
+  "margin": 0.2,
+  "num_frames": 5,
+  "per_frame_IoU": {
+    "0060": 0.7242302543507363,
+    "0061": 0.6690265486725664,
+    "0064": 0.6732223903177005,
+    "0065": 0.7247191011235955,
+    "0066": 0.5912486659551761
+  },
+  "LOO_IoU": 0.676489392083955,
+  "model": "facebook/dinov2-small",
+  "note": "prototype built from N-1 frames, evaluated on the held-out frame; with only 5 labeled frames this shows small-sample cross-frame consistency (not strong generalization), complementing the full-proto train==test parity in parity_report.json"
+}

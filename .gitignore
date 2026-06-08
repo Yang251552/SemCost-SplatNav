@@ -10,3 +10,11 @@ checkpoints/
 wandb/
 .DS_Store
 
+
+# Stage-2 P2 render data (local only)
+assets/p2_arkit_render/
+
+# Stage-2 P2 DINO binary artifacts (regenerable from scripts; only JSON reports + figures are committed)
+results/dino_pca64*.npy
+results/bad_proto.npy
+results/semantic_cost_maps.npz
