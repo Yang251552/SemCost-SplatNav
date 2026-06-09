@@ -142,7 +142,7 @@ obs 组合（三路消融，同 net / 同 reward / 同 seed / 同 steps）：
 | g5 quota 需工单（1–2 天异步） | 中 | **D0 第一件事**提工单，并行等待 |
 | spot 中断丢进度 | 中 | 每 N step checkpoint→S3，`--resume` 续跑 |
 | 版本不兼容 | 高 | CUDA/torch/gsplat 全 pin，conda `env.yaml` 固化，版本写进 REPORT |
-| 预算超支 | 低 | 闲时自动停机 + Budgets 告警 \$100/\$150 |
+| 预算超支 | 低 | 闲时自动停机 + Budgets 告警 \$45/\$50 |
 
 ---
 
@@ -153,7 +153,7 @@ obs 组合（三路消融，同 net / 同 reward / 同 seed / 同 steps）：
 - **自动停机**：训练结束/异常 → `shutdown -h +5`；CloudWatch 闲置告警（最大省钱项）。
 - **持久化**：tmux 持久会话 + SSH/VSCode remote；spot 中断后新实例拉 S3 续跑。
 - **省钱**：不训练就 `stop` 实例；COLMAP 等 CPU 活放本机/廉价 CPU 实例。
-- **护栏**：AWS Budgets \$150 阈值 80%/100% 告警。
+- **护栏**：AWS Budgets \$45/\$50 两档阈值告警（与 §3 / §7 一致）。
 - **版本对齐**：以 GaussGym README 锁定版本为准（D0），全程 pin，记录 `nvidia-smi`/torch/gsplat 到 REPORT。
 
 ---
@@ -242,6 +242,6 @@ sudo shutdown -h +2                      # 跑完即关机，省钱硬闸
 
 - 动作：`codex_workflow.py max --intent research`（只读，独立产出平行 plan）。
 - 状态：Codex 完成会话（`019e7d1c…`）并产出**完整 plan + ===HANDOFF=== 块**，但 workflow 的 handoff 抽取器报 “not found”（工具解析 glitch）。Claude 已从 session 日志**恢复全文**并合并，非纯降级。
-- 两份一致点：三阶段拆解、IsaacGym 为最大风险 + 降级到自写 batched env、spot+S3 checkpoint+自动停机、三路同 config 仅观测不同、主张挂 bad_region_time、成本远低于 \$150。
+- 两份一致点：三阶段拆解、IsaacGym 为最大风险 + 降级到自写 batched env、spot+S3 checkpoint+自动停机、三路同 config 仅观测不同、主张挂 bad_region_time、成本控制在 ≤\$50（估 \$14–25 spot）。
 - 采纳自 Codex 的强化：IoU≥0.5 的 cost-map parity 阈值、config-hash 公平性校验、channel-ablation 单测、CUDA11.8/torch2.1 版本基线、IsaacGym timebox 6h、P4 ≥3 seeds、`env.yaml` 固化。
 - Claude 补上 Codex 漏掉的 P0：① `gsplat` 需 CUDA、Mac 跑不了 P2 渲染（Codex 误判“P2 本地 0 付费”）；② IsaacGym 已被 NVIDIA 弃用、需 D0 核实 vs Isaac Lab；③ g5 quota 工单需 D0 最先发起。
